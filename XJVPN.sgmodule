@@ -2,7 +2,7 @@
 #!desc=提取节点
 
 [MITM]
-hostname = %APPEND% api.banala.top,api.banala.icu
+hostname = %APPEND% api.banala.top
 
 [Script]
-香蕉vpn = type=http-response,pattern=http://api.banala.top&api.banala.icu/api/frostkiss,requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/XJvpn.js,max-size=0,binary-body-mode=0,script-update-interval=0
+香蕉vpn = type=http-response,pattern=http://api.banala.top/api/frostkiss,requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/XJvpn.js,max-size=0,binary-body-mode=0,script-update-interval=0
