@@ -42,7 +42,7 @@
 
     if (!decryptedUrl?.trim()) throw new Error("解密结果为空");
 
-    $.msg($.name, "✅ Eric专属解密成功", decryptedUrl);
+    $.msg($.name, "✅ 解密成功", decryptedUrl);
   } catch (e) {
     $.logErr("处理出错: ", e);
     $.msg($.name, "❌ 解密失败", e.message);
