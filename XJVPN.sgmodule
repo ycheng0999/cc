@@ -3,9 +3,9 @@
 #!desc=提取节点
 
 [MITM]
-hostname =  %APPEND% banala-i.s3.ap-east-1.amazonaws.com,banala-i.oss-cn-hongkong.aliyuncs.com,api.banala.top,banala.icu
+hostname =  %APPEND% banala-i.s3.ap-east-1.amazonaws.com,banala-i.oss-cn-hongkong.aliyuncs.com,api.banala.top,api.banala.icu
 
 
 [Script]
 
-香蕉vpn = type=http-response,pattern=http://(banala-i.s3.ap-east-1.amazonaws.com,((banala-i.oss-cn-hongkong.aliyuncs.com)|(api.banala.top|banala.icu))/xiangjiao/version2/v2_node_protocol,requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/XJvpn.js,max-size=0,binary-body-mode=0,script-update-interval=0
+香蕉vpn = type=http-response,pattern=http://.*/electric/storage/battery,requires-body=1,max-size=0,binary-body-mode=0,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/XJvpn.js,script-update-interval=0
