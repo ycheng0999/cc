@@ -1,5 +1,5 @@
 #!name=香蕉VPN
-#!desc=自动提取香蕉节点
+#!desc=提取香蕉节点
 
 [MITM]
 hostname = %APPEND% banala-i.oss-cn-hongkong.aliyuncs.com, api.banala.top, api.banala.shop, api.banala.icu
