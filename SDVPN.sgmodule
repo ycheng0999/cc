@@ -1,6 +1,6 @@
 
 #!name=赛盾快链香蕉VPN
-#!desc=提取节点
+#!desc=提取节点 
 
 [MITM]
 hostname =  %APPEND% ga-bp12jenvgkuxtp83g76ya.aliyunga0019.com,roudie.cn,saidun.fun,api.banala.top,lightnew.ektjn.cn
