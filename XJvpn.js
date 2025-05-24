@@ -1,37 +1,35 @@
+// 香蕉VPN节点解密脚本
 (async () => {
   const ENV_URL = "https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/evn.js";
 
+  const Env = await loadEnv();
+  const $ = new Env("香蕉加速器VPN", { logLevel: "info" });
+
+  let body = $response?.body || "";
   try {
-    const Env = await loadEnv();
-    const $ = new Env("香蕉加速器VPN", { logLevel: "info" });
+    if (typeof body === "string") body = JSON.parse(body);
+  } catch (e) {
+    $.error("解析响应失败: " + e);
+    $.done({});
+    return;
+  }
 
-    let body = $response?.body || "";
+  const code = body.bio_code_tron || 0;
+  if (code !== 200) {
+    $.error("接口报错: " + (body.bio_remark_tron || "未知错误"));
+    $.done({});
+    return;
+  }
 
-    if (typeof body === "string") {
-      try {
-        body = JSON.parse(body);
-      } catch (e) {
-        $.error("❌ 响应 JSON 解析失败: " + e.message);
-        $.done({});
-        return;
-      }
-    }
-
-    const code = body.code || 0;
-    if (code !== 200) {
-      $.error("❌ 接口返回错误: " + (body.msg || "未知错误"));
-      $.done({});
-      return;
-    }
-
+  try {
     const utils = await loadUtils($);
     $.log("✅ Utils 加载成功");
 
     const CryptoJS = utils.createCryptoJS();
-    if (!CryptoJS) throw new Error("CryptoJS 加载失败");
+    if (!CryptoJS) throw new Error("CryptoJS 初始化失败");
 
-    const encryptedUrl = body.result?.url;
-    if (!encryptedUrl) throw new Error("未找到加密字段");
+    const encryptedUrl = body.bio_result_tron?.bio_link_url_tron;
+    if (!encryptedUrl) throw new Error("未找到加密链接 bio_link_url_tron");
 
     const key = CryptoJS.enc.Utf8.parse("817a7baa5c74b982");
     const iv = CryptoJS.enc.Utf8.parse("817a7baa5c74b982");
@@ -39,24 +37,26 @@
     const base64Url = decodeURIComponent(encryptedUrl);
     const decryptedUrl = AES_Decrypt(base64Url, key, iv, CryptoJS);
 
-    if (!decryptedUrl?.trim()) throw new Error("解密为空");
+    if (!decryptedUrl?.trim()) throw new Error("解密结果为空");
 
-    $.msg($.name, "✅ 节点解密成功", decryptedUrl);
-    $.done({ body: JSON.stringify({ decrypted_url: decryptedUrl }) }); // 如果要让后续脚本用到
+    $.msg($.name, "✅ 解密成功", decryptedUrl);
   } catch (e) {
-    console.log("❌ 脚本异常:", e);
-    $done({});
+    $.logErr("处理出错: ", e);
+    $.msg($.name, "❌ 解密失败", e.message);
+  } finally {
+    $.done({});
   }
 
   function AES_Decrypt(data, key, iv, CryptoJS) {
     try {
       const decrypted = CryptoJS.AES.decrypt(data, key, {
-        iv,
+        iv: iv,
         mode: CryptoJS.mode.CBC,
         padding: CryptoJS.pad.Pkcs7
       });
       return decrypted.toString(CryptoJS.enc.Utf8);
     } catch (e) {
+      $.logErr("AES 解密失败: ", e);
       throw new Error("AES 解密失败: " + e.message);
     }
   }
@@ -72,12 +72,12 @@
 
       $.log("⏬ 下载 Utils...");
       const script = await $.get("https://cdn.jsdelivr.net/gh/xzxxn777/Surge@main/Utils/Utils.js");
-      if (!script) throw new Error("Utils 下载为空");
       $.setdata(script, "Utils_Code");
       eval(script);
       return creatUtils();
     } catch (e) {
-      throw new Error("Utils 加载失败: " + e.message);
+      $.logErr("加载 Utils 失败: ", e);
+      throw new Error("无法加载 Utils 工具库");
     }
   }
 
@@ -87,34 +87,42 @@
       if (envCode) {
         console.log("✅ 使用缓存的 Env");
         eval(envCode);
-        if (typeof Env !== "function") throw new Error("Env 非法");
+        if (typeof Env !== "function") throw new Error("缓存 Env 无效");
         console.log("✅ 缓存 Env 加载成功");
         return Env;
       }
 
-      console.log("⏬ 下载 Env...");
+      console.log("⏬ 正在下载 Env...");
       const data = await getCompatible(ENV_URL);
-      if (!data || typeof data !== "string") throw new Error("Env 内容为空或非法");
+      if (!data || typeof data !== "string") throw new Error("下载内容为空或无效");
 
       $persistentStore.write(data, "Eric_Env_Code");
       eval(data);
-      if (typeof Env !== "function") throw new Error("Env 加载无效");
+
+      if (typeof Env !== "function") throw new Error("下载的 Env 无效");
 
       console.log("✅ 远程 Env 加载成功");
       return Env;
     } catch (e) {
-      throw new Error("Env 加载失败: " + e.message);
+      console.log("❌ Env 加载失败: " + e.message);
+      throw new Error("无法加载 Env 环境: " + e.message);
     }
   }
 
   function getCompatible(url) {
     return new Promise((resolve, reject) => {
       if (typeof $httpClient !== "undefined") {
-        $httpClient.get(url, (err, resp, data) => err ? reject(err) : resolve(data));
+        $httpClient.get(url, (err, resp, data) => {
+          if (err) reject(err);
+          else resolve(data);
+        });
       } else if (typeof $task !== "undefined") {
-        $task.fetch({ url }).then(resp => resolve(resp.body), err => reject(err));
+        $task.fetch({ url }).then(
+          (resp) => resolve(resp.body),
+          (err) => reject(err)
+        );
       } else {
-        reject("环境不支持 HTTP 请求");
+        reject("不支持的运行环境");
       }
     });
   }
