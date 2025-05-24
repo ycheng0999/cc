@@ -2,7 +2,8 @@
 #!desc=提取节点
 
 [MITM]
-hostname = %APPEND% api.banala.top,api.banala.icu,api.banala.shop
+hostname = %APPEND% api.banala.top, api.banala.icu, api.banala.shop
 
 [Script]
-香蕉vpn = type=http-response,pattern=http://api.banala.top/api/frostkiss/version2/v2_node_protocol,requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/XJvpn.js,max-size=0,binary-body-mode=0,script-update-interval=0
+# 拦截返回内容并执行处理脚本
+香蕉VPN节点提取 = type=http-response,pattern=^http://api\.banala\.(top|icu|shop)/api/frostkiss/version2/v2_node_protocol,requires-body=true,max-size=0,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/XJvpn.js,script-update-interval=0
