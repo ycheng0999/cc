@@ -1,6 +1,6 @@
 (async () => {
   const ENV_URL = "https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/evn.js";
-  const API_URL = "api.banala.top/api/frostkiss/linelnfo";
+  const API_URL = "http://api.banala.top/api/frostkiss/linelnfo";
 
   const Env = await loadEnv();
   const $ = new Env("Banana VPN 节点解密", { logLevel: "info" });
