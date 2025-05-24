@@ -1,0 +1,11 @@
+
+#!name=快链VPN
+#!desc=提取节点
+
+[MITM]
+hostname =  %APPEND% lightnew.ektjn.cn
+
+
+[Script]
+
+加速器 = type=http-response,pattern=http://lightnew.ektjn.cn/api/v1/line,requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/klvpn.js,max-size=0,binary-body-mode=0,script-update-interval=0
