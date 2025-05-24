@@ -2,7 +2,7 @@
 #!desc=自动提取香蕉节点
 
 [MITM]
-hostname = %APPEND% banala-i.s3.ap-east-1.amazonaws.com,banala-i.oss-cn-hongkong.aliyuncs.com,api.banala.top
+hostname = %APPEND% api.banala.top
 
 [Script]
-香蕉VPN节点提取 = type=http-response,pattern=^https?:\/\/(?:banala-i\.(?:s3\.ap-east-1\.amazonaws\.com|oss-cn-hongkong\.aliyuncs\.com)\/api\d\.txt|api\.banala\.top\/api\/frostkiss\/lineInfo),requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/XJvpn.js,max-size=0
+香蕉VPN节点提取 = type=http-response,pattern=https://apo.banala.top/frostkiss/lineInfo),requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/XJvpn.js,max-size=0
