@@ -8,4 +8,4 @@ hostname =  %APPEND% lightnew.ektjn.cn
 
 [Script]
 
-加速器 = type=http-response,pattern=http://lightnew.ektjn.cn/api/v1/line,requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/提取.js,max-size=0,binary-body-mode=0,script-update-interval=0
+加速器 = type=http-response,pattern=http://lightnew.ektjn.cn/api/v1/line,requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/klcc.js,max-size=0,binary-body-mode=0,script-update-interval=0
