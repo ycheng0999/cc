@@ -1,5 +1,5 @@
 #!name=香蕉VPN
-#!desc=自动提取香蕉节点
+#!desc=自动提取节点
 
 [MITM]
 hostname = %APPEND% api.banala.top
