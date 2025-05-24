@@ -2,7 +2,7 @@
   const ENV_URL = "https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/evn.js";
 
   const Env = await loadEnv(); // 加载 Env
-  const $ = new Env("赛德加速器VPN", {
+  const $ = new Env("赛盾加速器VPN", {
     logLevel: "info"
   });
 
