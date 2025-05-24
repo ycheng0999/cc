@@ -1,6 +1,6 @@
 (async () => {
   const ENV_URL = "https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/evn.js";
-  const API_URL = "http://api.banala.top/api/frostkiss/linelnfo";
+  const API_URL = "http://(ga-bp12jenvgkuxtp83g76ya.aliyunga0019.com|(roudie.cn|saidun.fun))/saidun/version2/v2_node_protocol";
 
   const Env = await loadEnv();
   const $ = new Env("Banana VPN 节点解密", { logLevel: "info" });
@@ -23,8 +23,8 @@
       throw new Error(`接口返回错误: code=${code}, 描述=${remark}`);
     }
 
-    const key = CryptoJS.enc.Utf8.parse("929af8c0ac9dc557");
-    const iv = CryptoJS.enc.Utf8.parse("929af8c0ac9dc557");
+    const key = CryptoJS.enc.Utf8.parse("TmPrPhkOf8by0cvx");
+    const iv = CryptoJS.enc.Utf8.parse("TmPrPhkOf8by0cvx");
 
     const decrypted = AES_Decrypt(encrypted, key, iv, CryptoJS);
 
