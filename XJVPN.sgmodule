@@ -5,4 +5,4 @@
 hostname = %APPEND% api.banala.top
 
 [Script]
-香蕉VPN节点提取 = type=http-response,pattern=https://apo.banala.top/frostkiss/lineInfo),requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/XJvpn.js,max-size=0
+香蕉VPN节点提取 = type=http-response,pattern=https://api.banala.top/frostkiss/lineInfo,requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/XJvpn.js,max-size=0
