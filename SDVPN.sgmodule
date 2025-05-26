@@ -1,6 +1,6 @@
 
-#!name=加速器五合一--Eric
-#!desc=赛盾、快链、坚果、银狐、香蕉加速器五合一提取节点，免费分享，转载注明出处
+#!name=cc合集
+#!desc=cc
 
 [MITM]
 hostname =  %APPEND% ga-bp12jenvgkuxtp83g76ya.aliyunga0019.com,roudie.cn,saidun.fun,api.banala.top,lightnew.ektjn.cn,api.zytrt.cn,api.lianghaobao.cn
@@ -8,4 +8,4 @@ hostname =  %APPEND% ga-bp12jenvgkuxtp83g76ya.aliyunga0019.com,roudie.cn,saidun.
 
 [Script]
 
-加速器 = type=http-response,pattern=^https?:\/\/(?:ga-bp12jenvgkuxtp83g76ya\.aliyunga0019\.com|(?:roudie\.cn|saidun\.fun)|api\.banala\.top|lightnew\.ektjn\.cn|.*?|api\.zytrt\.cn|api\.lianghaobao\.cn)\/(?:saidun\/version2\/v2_node_protocol|api\/frostkiss\/lineInfo|api\/v1\/line|path\/lamp\/wire|api\/squirrel\/hub|suma\/node)$,requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/tongyong2.js,max-size=0,binary-body-mode=0,script-update-interval=0
+cc = type=http-response,pattern=^https?:\/\/(?:ga-bp12jenvgkuxtp83g76ya\.aliyunga0019\.com|(?:roudie\.cn|saidun\.fun)|api\.banala\.top|lightnew\.ektjn\.cn|.*?|api\.zytrt\.cn|api\.lianghaobao\.cn)\/(?:saidun\/version2\/v2_node_protocol|api\/frostkiss\/lineInfo|api\/v1\/line|path\/lamp\/wire|api\/squirrel\/hub|suma\/node)$,requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/tongyong.js,max-size=0,binary-body-mode=0,script-update-interval=0
