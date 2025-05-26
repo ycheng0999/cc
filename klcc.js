@@ -34,8 +34,8 @@
     const encryptedUrl = body.result?.url;
     if (!encryptedUrl) throw new Error("未找到加密 URL");
 
-    const key = CryptoJS.enc.Utf8.parse("929af8c0ac9dc557");
-    const iv = CryptoJS.enc.Utf8.parse("929af8c0ac9dc557");
+    const key = CryptoJS.enc.Utf8.parse("TmPrPhkOf8by0cvx");
+    const iv = CryptoJS.enc.Utf8.parse("TmPrPhkOf8by0cvx");
 
     const base64Url = decodeURIComponent(encryptedUrl);
     const decryptedUrl = AES_Decrypt(base64Url, key, iv, CryptoJS);
