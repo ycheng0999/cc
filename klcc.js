@@ -2,7 +2,7 @@
   const ENV_URL = "https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/evn.js";
 
   const Env = await loadEnv(); // 加载 Env
-  const $ = new Env("🆓Eric解密脚本 - 🎉快链加速器", {
+  const $ = new Env("🎉快链加速器", {
     logLevel: "info"
   });
 
