@@ -9,8 +9,8 @@ const fieldPaths = [
 ];
 
 // AES 解密配置（按需替换）
-const aesKey = "0000000000000000"; // 16字节key
-const aesIv = "0000000000000000";  // 16字节IV
+const aesKey = "TmPrPhkOf8by0cvx"; // 16字节key
+const aesIv = "TmPrPhkOf8by0cvx";  // 16字节IV
 
 // ------------------ 主逻辑 -------------------
 (async () => {
