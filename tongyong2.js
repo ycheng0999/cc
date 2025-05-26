@@ -1,60 +1,73 @@
 (async () => {
-  const ENV_URL = "https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/evn.js";
-  const KEY = "TmPrPhkOf8by0cvx"; // 可替换
-  const IV = "TmPrPhkOf8by0cvx";  // 可替换
+  const KEY = "TmPrPhkOf8by0cvx"; // 替换为你的 Key
+  const IV = "TmPrPhkOf8by0cvx";  // 替换为你的 IV
 
   const Env = await loadEnv();
   const $ = new Env("VPN节点提取器", { logLevel: "info" });
 
   let body = $response?.body || "";
-  try { if (typeof body === "string") body = JSON.parse(body); } 
-  catch (e) { $.error("响应解析失败：" + e); $.done({}); return; }
-
-  const tryPaths = [
-    ["result", "web_url"],
-    ["bio_result_tron", 0, "bio_link_url_tron"],
-    ["prd_result_flg", "prd_kf_link_flg"]
-  ];
+  try {
+    if (typeof body === "string") body = JSON.parse(body);
+  } catch (e) {
+    $.error("响应解析失败：" + e);
+    $.done({});
+    return;
+  }
 
   try {
     const utils = await loadUtils($);
     const CryptoJS = utils.createCryptoJS();
-    if (!CryptoJS) throw new Error("CryptoJS 加载失败");
-
     const key = CryptoJS.enc.Utf8.parse(KEY);
     const iv = CryptoJS.enc.Utf8.parse(IV);
 
-    let encrypted;
-    for (const path of tryPaths) {
-      encrypted = getByPath(body, path);
-      if (typeof encrypted === "string") break;
-    }
+    const encrypted = findEncryptedString(body);
+    if (!encrypted) throw new Error("未找到加密链接字段");
 
-    if (!encrypted) throw new Error("未找到有效的加密链接字段");
-    const base64Url = decodeURIComponent(encrypted);
-    const decryptedUrl = AES_Decrypt(base64Url, key, iv, CryptoJS);
+    const urlEncoded = decodeURIComponent(encrypted);
+    const decrypted = AES_Decrypt(urlEncoded, key, iv, CryptoJS);
 
-    if (!decryptedUrl?.trim()) throw new Error("解密结果为空");
-    $.msg($.name, "✅ 解密成功", decryptedUrl);
-  } catch (e) {
-    $.logErr("❌ 出错: ", e);
-    $.msg($.name, "解密失败", e.message);
+    if (!decrypted?.trim()) throw new Error("解密内容为空");
+
+    $.msg($.name, "✅ 解密成功", decrypted);
+  } catch (err) {
+    $.logErr("❌ 出错:", err);
+    $.msg($.name, "解密失败", err.message);
   } finally {
     $.done({});
   }
 
-  function getByPath(obj, path) {
-    try {
-      return path.reduce((acc, cur) => acc?.[cur], obj);
-    } catch {
-      return undefined;
+  // 自动遍历对象找出第一个可能是 JWT 或 Base64 字符串
+  function findEncryptedString(obj, depth = 0) {
+    if (depth > 5) return null;
+    if (typeof obj === "string" && isProbablyEncrypted(obj)) return obj;
+
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        const found = findEncryptedString(item, depth + 1);
+        if (found) return found;
+      }
+    } else if (typeof obj === "object" && obj !== null) {
+      for (const key in obj) {
+        const found = findEncryptedString(obj[key], depth + 1);
+        if (found) return found;
+      }
     }
+    return null;
+  }
+
+  function isProbablyEncrypted(str) {
+    return typeof str === "string" && (
+      /^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/.test(str) || // JWT
+      /^[A-Za-z0-9+/=]{20,}$/.test(str) // Base64
+    );
   }
 
   function AES_Decrypt(data, key, iv, CryptoJS) {
     try {
       const decrypted = CryptoJS.AES.decrypt(data, key, {
-        iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7
+        iv: iv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
       });
       return decrypted.toString(CryptoJS.enc.Utf8);
     } catch (e) {
@@ -65,8 +78,10 @@
   async function loadUtils($) {
     try {
       const cached = $.getdata("Utils_Code");
-      if (cached) { eval(cached); return creatUtils(); }
-
+      if (cached) {
+        eval(cached);
+        return creatUtils();
+      }
       const script = await $.get("https://cdn.jsdelivr.net/gh/xzxxn777/Surge@main/Utils/Utils.js");
       $.setdata(script, "Utils_Code");
       eval(script);
@@ -79,9 +94,11 @@
   async function loadEnv() {
     try {
       const cached = $persistentStore.read("Eric_Env_Code");
-      if (cached) { eval(cached); return Env; }
-
-      const script = await getCompatible(ENV_URL);
+      if (cached) {
+        eval(cached);
+        return Env;
+      }
+      const script = await getCompatible("https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/evn.js");
       $persistentStore.write(script, "Eric_Env_Code");
       eval(script);
       return Env;
