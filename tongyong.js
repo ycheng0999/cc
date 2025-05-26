@@ -1,8 +1,11 @@
 (async () => {
-  const KEY = "TmPrPhkOf8by0cvx"; // 可替换
-  const IV = "TmPrPhkOf8by0cvx";  // 可替换
+  const KEYS = [
+    { key: "TmPrPhkOf8by0cvx", iv: "TmPrPhkOf8by0cvx" },
+    { key: "817a7baa5c74b982", iv: "817a7baa5c74b982" },
+    { key: "929af8c0ac9dc557", iv: "929af8c0ac9dc557" },
+    // 可以继续添加更多组合
+  ];
 
-  const ENV_URL = "https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/evn.js";
   const Env = await loadEnv();
   const $ = new Env("VPN节点提取器", { logLevel: "info" });
 
@@ -20,77 +23,100 @@
     const CryptoJS = utils.createCryptoJS();
     if (!CryptoJS) throw new Error("CryptoJS 加载失败");
 
-    const key = CryptoJS.enc.Utf8.parse(KEY);
-    const iv = CryptoJS.enc.Utf8.parse(IV);
+    const encrypted = findEncryptedString(body);
+    if (!encrypted) throw new Error("未找到加密链接字段");
 
-    const candidates = findPossibleEncryptedStrings(body);
-    if (candidates.length === 0) throw new Error("未找到可能的加密链接");
+    const base64Url = decodeURIComponent(encrypted);
+    let decrypted = "";
 
-    let decryptedUrl = null;
-    for (const item of candidates) {
-      const base64Url = decodeURIComponent(item);
+    for (const { key, iv } of KEYS) {
       try {
-        decryptedUrl = AES_Decrypt(base64Url, key, iv, CryptoJS);
-        if (decryptedUrl?.trim()) break;
-      } catch {}
+        const k = CryptoJS.enc.Utf8.parse(key);
+        const i = CryptoJS.enc.Utf8.parse(iv);
+        decrypted = AES_Decrypt(base64Url, k, i, CryptoJS);
+        if (decrypted?.trim()) {
+          $.msg($.name, `✅ 解密成功`, decrypted);
+          break;
+        }
+      } catch (err) {
+        $.log(`尝试 key=${key} 解密失败：${err.message}`);
+        continue;
+      }
     }
 
-    if (!decryptedUrl?.trim()) throw new Error("所有字段解密失败");
+    if (!decrypted?.trim()) throw new Error("所有 key/iv 解密失败");
 
-    $.msg($.name, "✅ 解密成功", decryptedUrl);
-  } catch (e) {
-    $.logErr("❌ 出错: ", e);
-    $.msg($.name, "解密失败", e.message);
+  } catch (err) {
+    $.logErr("❌ 出错:", err);
+    $.msg($.name, "解密失败", err.message);
   } finally {
     $.done({});
   }
 
-  function findPossibleEncryptedStrings(obj) {
-    const results = [];
-    const traverse = (o) => {
-      if (typeof o === "object" && o !== null) {
-        for (const key in o) traverse(o[key]);
-      } else if (typeof o === "string") {
-        if (isPossiblyBase64(o) || isJWT(o)) results.push(o);
-      }
-    };
-    traverse(obj);
-    return results;
-  }
-
-  function isPossiblyBase64(str) {
-    return /^[A-Za-z0-9+/=]{16,}$/.test(str) && str.length % 4 === 0;
-  }
-
-  function isJWT(str) {
-    return /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(str);
-  }
-
   function AES_Decrypt(data, key, iv, CryptoJS) {
-    const decrypted = CryptoJS.AES.decrypt(data, key, {
-      iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7
-    });
-    return decrypted.toString(CryptoJS.enc.Utf8);
+    try {
+      const decrypted = CryptoJS.AES.decrypt(data, key, {
+        iv: iv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      });
+      return decrypted.toString(CryptoJS.enc.Utf8);
+    } catch (e) {
+      throw new Error("AES 解密失败: " + e.message);
+    }
+  }
+
+  function findEncryptedString(obj, depth = 0) {
+    if (depth > 5) return null;
+    if (typeof obj === "string" && isProbablyEncrypted(obj)) return obj;
+
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        const found = findEncryptedString(item, depth + 1);
+        if (found) return found;
+      }
+    } else if (typeof obj === "object" && obj !== null) {
+      for (const key in obj) {
+        const found = findEncryptedString(obj[key], depth + 1);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  function isProbablyEncrypted(str) {
+    return typeof str === "string" && (
+      /^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/.test(str) || // JWT
+      /^[A-Za-z0-9+/=]{20,}$/.test(str) // Base64
+    );
   }
 
   async function loadUtils($) {
-    const cached = $.getdata("Utils_Code");
-    if (cached) { eval(cached); return creatUtils(); }
+    try {
+      const cached = $.getdata("Utils_Code");
+      if (cached) { eval(cached); return creatUtils(); }
 
-    const script = await $.get("https://cdn.jsdelivr.net/gh/xzxxn777/Surge@main/Utils/Utils.js");
-    $.setdata(script, "Utils_Code");
-    eval(script);
-    return creatUtils();
+      const script = await $.get("https://cdn.jsdelivr.net/gh/xzxxn777/Surge@main/Utils/Utils.js");
+      $.setdata(script, "Utils_Code");
+      eval(script);
+      return creatUtils();
+    } catch (e) {
+      throw new Error("加载 Utils 失败: " + e.message);
+    }
   }
 
   async function loadEnv() {
-    const cached = $persistentStore.read("Eric_Env_Code");
-    if (cached) { eval(cached); return Env; }
+    try {
+      const cached = $persistentStore.read("Eric_Env_Code");
+      if (cached) { eval(cached); return Env; }
 
-    const script = await getCompatible(ENV_URL);
-    $persistentStore.write(script, "Eric_Env_Code");
-    eval(script);
-    return Env;
+      const script = await getCompatible("https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/evn.js");
+      $persistentStore.write(script, "Eric_Env_Code");
+      eval(script);
+      return Env;
+    } catch (e) {
+      throw new Error("加载 Env 失败: " + e.message);
+    }
   }
 
   function getCompatible(url) {
