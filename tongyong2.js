@@ -1,6 +1,6 @@
 (async () => {
-  const KEY = "TmPrPhkOf8by0cvx"; // 替换为你的 Key
-  const IV = "TmPrPhkOf8by0cvx";  // 替换为你的 IV
+  const KEY = "817a7baa5c74b982"; // 替换为你的 Key
+  const IV = "817a7baa5c74b982";  // 替换为你的 IV
 
   const Env = await loadEnv();
   const $ = new Env("VPN节点提取器", { logLevel: "info" });
