@@ -1,117 +1,104 @@
 (async () => {
+  const ENV_URL = "https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/evn.js";
+  const KEY = "TmPrPhkOf8by0cvx"; // 可替换
+  const IV = "TmPrPhkOf8by0cvx";  // 可替换
+
+  const Env = await loadEnv();
   const $ = new Env("VPN节点提取器", { logLevel: "info" });
 
   let body = $response?.body || "";
-  try {
-    if (typeof body === "string") body = JSON.parse(body);
-  } catch (e) {
-    $.error("响应解析失败：" + e.message);
-    $.done({});
-    return;
-  }
+  try { if (typeof body === "string") body = JSON.parse(body); } 
+  catch (e) { $.error("响应解析失败：" + e); $.done({}); return; }
 
-  // 预设自动尝试的字段路径（支持点分割和数组索引）
-  const possiblePaths = [
-    "result.url",
-    "result.web_url",
-    "bio_result_tron[0].bio_link_url_tron",
-    "prd_result_flg.prd_kf_link_flg",
-    "body.result.web_url",
-    "bio_result_tron[0].bio_code_tron", // 备用，视接口调整
+  const tryPaths = [
+    ["result", "web_url"],
+    ["bio_result_tron", 0, "bio_link_url_tron"],
+    ["prd_result_flg", "prd_kf_link_flg"]
   ];
 
-  // AES key 和 iv（可临时修改）
-  const AESKeyStr = "TmPrPhkOf8by0cvx";
-  const AESIvStr = "TmPrPhkOf8by0cvx";
+  try {
+    const utils = await loadUtils($);
+    const CryptoJS = utils.createCryptoJS();
+    if (!CryptoJS) throw new Error("CryptoJS 加载失败");
 
-  // 解析路径辅助函数
-  function getValueByPath(obj, path) {
-    try {
-      return path.split('.').reduce((acc, part) => {
-        // 支持数组索引，例如 bio_result_tron[0]
-        if (!acc) return null;
-        let m = part.match(/^(\w+)(\[(\d+)\])?$/);
-        if (!m) return null;
-        let key = m[1];
-        let index = m[3];
-        let val = acc[key];
-        if (index !== undefined) val = Array.isArray(val) ? val[parseInt(index)] : null;
-        return val;
-      }, obj);
-    } catch {
-      return null;
+    const key = CryptoJS.enc.Utf8.parse(KEY);
+    const iv = CryptoJS.enc.Utf8.parse(IV);
+
+    let encrypted;
+    for (const path of tryPaths) {
+      encrypted = getByPath(body, path);
+      if (typeof encrypted === "string") break;
     }
-  }
 
-  // 尝试自动获取加密链接字段
-  let encryptedUrl = null;
-  for (let path of possiblePaths) {
-    let val = getValueByPath(body, path);
-    if (val && typeof val === "string" && val.trim()) {
-      encryptedUrl = val.trim();
-      $.log(`尝试路径成功：${path} = ${encryptedUrl}`);
-      break;
-    }
-  }
+    if (!encrypted) throw new Error("未找到有效的加密链接字段");
+    const base64Url = decodeURIComponent(encrypted);
+    const decryptedUrl = AES_Decrypt(base64Url, key, iv, CryptoJS);
 
-  if (!encryptedUrl) {
-    $.error("未找到有效的加密链接字段");
+    if (!decryptedUrl?.trim()) throw new Error("解密结果为空");
+    $.msg($.name, "✅ 解密成功", decryptedUrl);
+  } catch (e) {
+    $.logErr("❌ 出错: ", e);
+    $.msg($.name, "解密失败", e.message);
+  } finally {
     $.done({});
-    return;
   }
 
-  // AES 解密函数
-  function aesDecrypt(data, keyStr, ivStr) {
+  function getByPath(obj, path) {
     try {
-      const CryptoJS = require("crypto-js"); // Node.js 环境示例
-      const key = CryptoJS.enc.Utf8.parse(keyStr);
-      const iv = CryptoJS.enc.Utf8.parse(ivStr);
+      return path.reduce((acc, cur) => acc?.[cur], obj);
+    } catch {
+      return undefined;
+    }
+  }
 
-      // 如果是 URL encoded，先 decode
-      let dataStr = decodeURIComponent(data);
-
-      // 判断是否为 Base64 或 JWT（JWT格式示例）
-      if (dataStr.split('.').length === 3) {
-        // JWT 不解密，直接返回（如果你需要解析 JWT，可以用 jwt-decode 等库）
-        return dataStr;
-      }
-
-      // AES CBC 解密
-      let decrypted = CryptoJS.AES.decrypt(dataStr, key, {
-        iv: iv,
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7,
+  function AES_Decrypt(data, key, iv, CryptoJS) {
+    try {
+      const decrypted = CryptoJS.AES.decrypt(data, key, {
+        iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7
       });
-
-      let result = decrypted.toString(CryptoJS.enc.Utf8);
-      if (!result) throw new Error("解密后为空");
-      return result;
+      return decrypted.toString(CryptoJS.enc.Utf8);
     } catch (e) {
       throw new Error("AES 解密失败: " + e.message);
     }
   }
 
-  try {
-    // 根据环境载入 CryptoJS（Surge、QuanX、Node等环境自行适配）
-    let CryptoJS;
-    if (typeof require === "function") {
-      CryptoJS = require("crypto-js");
-    } else {
-      // 这里假设你已预加载 CryptoJS 库，否则需要动态加载
-      CryptoJS = window.CryptoJS || null;
+  async function loadUtils($) {
+    try {
+      const cached = $.getdata("Utils_Code");
+      if (cached) { eval(cached); return creatUtils(); }
+
+      const script = await $.get("https://cdn.jsdelivr.net/gh/xzxxn777/Surge@main/Utils/Utils.js");
+      $.setdata(script, "Utils_Code");
+      eval(script);
+      return creatUtils();
+    } catch (e) {
+      throw new Error("加载 Utils 失败: " + e.message);
     }
+  }
 
-    if (!CryptoJS) throw new Error("未加载 CryptoJS");
+  async function loadEnv() {
+    try {
+      const cached = $persistentStore.read("Eric_Env_Code");
+      if (cached) { eval(cached); return Env; }
 
-    let decrypted = aesDecrypt(encryptedUrl, AESKeyStr, AESIvStr);
+      const script = await getCompatible(ENV_URL);
+      $persistentStore.write(script, "Eric_Env_Code");
+      eval(script);
+      return Env;
+    } catch (e) {
+      throw new Error("加载 Env 失败: " + e.message);
+    }
+  }
 
-    $.msg($.name, "解密成功", decrypted);
-  } catch (e) {
-    $.error("解密失败：" + e.message);
-    $.msg($.name, "解密失败", e.message);
-  } finally {
-    $.done({});
+  function getCompatible(url) {
+    return new Promise((resolve, reject) => {
+      if (typeof $httpClient !== "undefined") {
+        $httpClient.get(url, (err, resp, data) => err ? reject(err) : resolve(data));
+      } else if (typeof $task !== "undefined") {
+        $task.fetch({ url }).then(resp => resolve(resp.body), reject);
+      } else {
+        reject("不支持的运行环境");
+      }
+    });
   }
 })();
-
-// 环境类 Env 需要你自行提供或使用你的版本
