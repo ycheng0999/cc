@@ -5,6 +5,7 @@
     { key: "817a7baa5c74b982", iv: "817a7baa5c74b982" },
     { key: "5841b418488e65cc", iv: "5841b418488e65cc" },
     { key: "AE0plfOrl4CCUO87", iv: "AE0plfOrl4CCUO87" },
+    { key: "VNfo9MuDNeP8ZjYm", iv: "VNfo9MuDNeP8ZjYm" },
     // 更多 key/iv 可添加
   ];
 
