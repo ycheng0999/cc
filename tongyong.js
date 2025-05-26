@@ -1,124 +1,117 @@
-// Surge Script: VPN 节点提取器（支持字段路径+自动推断）
-// 作者：ChatGPT 定制版
-// 用法：配合 Banana/赛盾/银狐/快链等接口使用，提取节点链接
-// 设置字段路径
-const fieldPaths = [
-  "result.web_url",
-  "bio_result_tron[].bio_link_url_tron",
-  "prd_result_flg.prd_kf_link_flg"
-];
-
-// AES 解密配置（按需替换）
-const aesKey = "TmPrPhkOf8by0cvx"; // 16字节key
-const aesIv = "TmPrPhkOf8by0cvx";  // 16字节IV
-
-// ------------------ 主逻辑 -------------------
 (async () => {
+  const $ = new Env("VPN节点提取器", { logLevel: "info" });
+
+  let body = $response?.body || "";
   try {
-    const body = JSON.parse($response.body);
+    if (typeof body === "string") body = JSON.parse(body);
+  } catch (e) {
+    $.error("响应解析失败：" + e.message);
+    $.done({});
+    return;
+  }
 
-    // 尝试从字段路径中查找加密链接
-    const encryptedUrl = getFieldFromPaths(body, fieldPaths);
+  // 预设自动尝试的字段路径（支持点分割和数组索引）
+  const possiblePaths = [
+    "result.url",
+    "result.web_url",
+    "bio_result_tron[0].bio_link_url_tron",
+    "prd_result_flg.prd_kf_link_flg",
+    "body.result.web_url",
+    "bio_result_tron[0].bio_code_tron", // 备用，视接口调整
+  ];
 
-    let finalUrl = null;
-    if (encryptedUrl) {
-      console.log("[字段路径] 命中字段：" + encryptedUrl);
-      finalUrl = tryDecode(encryptedUrl);
+  // AES key 和 iv（可临时修改）
+  const AESKeyStr = "TmPrPhkOf8by0cvx";
+  const AESIvStr = "TmPrPhkOf8by0cvx";
+
+  // 解析路径辅助函数
+  function getValueByPath(obj, path) {
+    try {
+      return path.split('.').reduce((acc, part) => {
+        // 支持数组索引，例如 bio_result_tron[0]
+        if (!acc) return null;
+        let m = part.match(/^(\w+)(\[(\d+)\])?$/);
+        if (!m) return null;
+        let key = m[1];
+        let index = m[3];
+        let val = acc[key];
+        if (index !== undefined) val = Array.isArray(val) ? val[parseInt(index)] : null;
+        return val;
+      }, obj);
+    } catch {
+      return null;
     }
+  }
 
-    // 如果字段路径未命中，启用自动推断模式
-    if (!finalUrl) {
-      console.log("[自动模式] 开始自动扫描链接字段...");
-      const guessedUrls = findPossibleLinks(body);
-      for (const url of guessedUrls) {
-        console.log("尝试解密：" + url);
-        finalUrl = tryDecode(url);
-        if (finalUrl) {
-          console.log("[自动模式] 成功解密链接：" + finalUrl);
-          break;
-        }
+  // 尝试自动获取加密链接字段
+  let encryptedUrl = null;
+  for (let path of possiblePaths) {
+    let val = getValueByPath(body, path);
+    if (val && typeof val === "string" && val.trim()) {
+      encryptedUrl = val.trim();
+      $.log(`尝试路径成功：${path} = ${encryptedUrl}`);
+      break;
+    }
+  }
+
+  if (!encryptedUrl) {
+    $.error("未找到有效的加密链接字段");
+    $.done({});
+    return;
+  }
+
+  // AES 解密函数
+  function aesDecrypt(data, keyStr, ivStr) {
+    try {
+      const CryptoJS = require("crypto-js"); // Node.js 环境示例
+      const key = CryptoJS.enc.Utf8.parse(keyStr);
+      const iv = CryptoJS.enc.Utf8.parse(ivStr);
+
+      // 如果是 URL encoded，先 decode
+      let dataStr = decodeURIComponent(data);
+
+      // 判断是否为 Base64 或 JWT（JWT格式示例）
+      if (dataStr.split('.').length === 3) {
+        // JWT 不解密，直接返回（如果你需要解析 JWT，可以用 jwt-decode 等库）
+        return dataStr;
       }
+
+      // AES CBC 解密
+      let decrypted = CryptoJS.AES.decrypt(dataStr, key, {
+        iv: iv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7,
+      });
+
+      let result = decrypted.toString(CryptoJS.enc.Utf8);
+      if (!result) throw new Error("解密后为空");
+      return result;
+    } catch (e) {
+      throw new Error("AES 解密失败: " + e.message);
+    }
+  }
+
+  try {
+    // 根据环境载入 CryptoJS（Surge、QuanX、Node等环境自行适配）
+    let CryptoJS;
+    if (typeof require === "function") {
+      CryptoJS = require("crypto-js");
+    } else {
+      // 这里假设你已预加载 CryptoJS 库，否则需要动态加载
+      CryptoJS = window.CryptoJS || null;
     }
 
-    if (!finalUrl) {
-      console.log("❌ 解密失败：未找到有效的加密链接字段");
-    } else {
-      console.log("✅ 成功提取链接：\n" + finalUrl);
-    }
-  } catch (err) {
-    console.log("❌ 脚本异常：" + err);
+    if (!CryptoJS) throw new Error("未加载 CryptoJS");
+
+    let decrypted = aesDecrypt(encryptedUrl, AESKeyStr, AESIvStr);
+
+    $.msg($.name, "解密成功", decrypted);
+  } catch (e) {
+    $.error("解密失败：" + e.message);
+    $.msg($.name, "解密失败", e.message);
   } finally {
-    $done({});
+    $.done({});
   }
 })();
 
-// ------------------ 工具函数 -------------------
-function tryDecode(url) {
-  if (!url.includes("s=")) return null;
-  const encrypted = url.split("s=")[1].split("&")[0].split("#")[0];
-  if (!encrypted || encrypted.length < 16) return null;
-
-  try {
-    const decrypted = aesDecrypt(encrypted, aesKey, aesIv);
-    return decrypted;
-  } catch (e) {
-    console.log("解密错误：" + e);
-    return null;
-  }
-}
-
-function getFieldFromPaths(obj, paths) {
-  for (const path of paths) {
-    const result = extractValue(obj, path);
-    if (result) return result;
-  }
-  return null;
-}
-
-function extractValue(obj, path) {
-  const parts = path.split(".");
-  let current = obj;
-
-  for (const part of parts) {
-    if (part.endsWith("[]")) {
-      const arrayKey = part.replace("[]", "");
-      if (!Array.isArray(current[arrayKey])) return null;
-      for (const item of current[arrayKey]) {
-        const value = extractValue(item, parts.slice(parts.indexOf(part) + 1).join("."));
-        if (value) return value;
-      }
-      return null;
-    } else {
-      if (typeof current !== "object" || !(part in current)) return null;
-      current = current[part];
-    }
-  }
-  return typeof current === "string" ? current : null;
-}
-
-function findPossibleLinks(obj) {
-  const urls = [];
-  const walk = (o) => {
-    if (typeof o === "object" && o !== null) {
-      for (const k in o) walk(o[k]);
-    } else if (typeof o === "string") {
-      if ((o.includes("s=") && o.length > 30) || /^[A-Za-z0-9+/=]{32,}$/.test(o)) {
-        urls.push(o);
-      }
-    }
-  };
-  walk(obj);
-  return urls;
-}
-
-function aesDecrypt(encrypted, key, iv) {
-  const CryptoJS = require("crypto-js");
-  const keyUtf8 = CryptoJS.enc.Utf8.parse(key);
-  const ivUtf8 = CryptoJS.enc.Utf8.parse(iv);
-  const decrypted = CryptoJS.AES.decrypt(encrypted, keyUtf8, {
-    iv: ivUtf8,
-    padding: CryptoJS.pad.Pkcs7,
-    mode: CryptoJS.mode.CBC
-  });
-  return decrypted.toString(CryptoJS.enc.Utf8);
-}
+// 环境类 Env 需要你自行提供或使用你的版本
