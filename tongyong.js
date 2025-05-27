@@ -26,7 +26,6 @@
     if (!CryptoJS) throw new Error("CryptoJS 加载失败");
 
     const paths = [
-
       ["bio_result_tron", 0, "bio_link_url_tron"],
       ["prd_result_flg", "prd_kf_link_flg"]          //原子
     ];
