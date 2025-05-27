@@ -1,0 +1,11 @@
+
+#!name=ty
+#!desc=ty
+
+[MITM]
+hostname =  %APPEND%    api.zytrt.cn,api.lianghaobao.cn
+
+
+[Script]
+
+cc = type=http-response,pattern=^https?:\/\/(?:.*?|api\.zytrt\.cn|api\.lianghaobao\.cn)\/(?:path\/lamp\/wire|api\/squirrel\/hub|suma\/node)$,requires-body=1,script-path=https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/tongyong.js,max-size=0,binary-body-mode=0,script-update-interval=0
