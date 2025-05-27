@@ -28,7 +28,7 @@
     const paths = [
       ["result", "web_url"], //sd
       ["bio_result_tron", 0, "bio_link_url_tron"],
-      ["prd_result_flg", "prd_kf_link_flg"]
+      ["prd_result_flg", "prd_kf_link_flg"]          //原子
     ];
 
     let encrypted = null;
