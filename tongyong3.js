@@ -1,3 +1,4 @@
+// @grant surgebypass
 (async () => {
   const KEYS = [
     { key: "TmPrPhkOf8by0cvx", iv: "TmPrPhkOf8by0cvx" },
@@ -15,122 +16,108 @@
   try {
     if (typeof body === "string") body = JSON.parse(body);
   } catch (e) {
-    $.error("响应解析失败：" + e);
+    $.error("响应 JSON 解析失败：" + e);
     return $.done({});
   }
 
   const utils = await loadUtils($);
   const CryptoJS = utils.createCryptoJS();
+  if (!CryptoJS) return $.done("CryptoJS 加载失败");
 
-  if (!CryptoJS) return $.done($.msg("CryptoJS 加载失败"));
+  const flatten = (obj, prefix = "") =>
+    Object.entries(obj).flatMap(([k, v]) =>
+      typeof v === "object" && v !== null
+        ? flatten(v, `${prefix}${k}.`)
+        : [[`${prefix}${k}`, v]]
+    );
 
-  const decodedSet = new Set();
-  let nodes = [];
+  const candidates = flatten(body).filter(([k, v]) => isProbablyEncrypted(v));
+  if (candidates.length === 0) return $.msg("未发现加密字段", "", "终止执行"), $.done({});
 
-  // 从对象中提取所有可能字段
-  const fields = ["address", "port", "path", "node_id", "mask_host", "host"];
-  const candidates = collectEncryptedStrings(body, fields);
+  const groups = groupFields(candidates);
+  const generated = new Set();
 
-  for (const enc of candidates) {
-    const raw = decodeURIComponent(enc);
-    for (const { key, iv } of KEYS) {
-      try {
-        const k = CryptoJS.enc.Utf8.parse(key);
-        const i = CryptoJS.enc.Utf8.parse(iv);
-        const decrypted = AES_Decrypt(raw, k, i, CryptoJS).trim();
+  for (const fields of groups) {
+    const fieldMap = {};
+    for (const [key, val] of fields) {
+      const field = extractFieldName(key);
+      const decrypted = tryDecrypt(val, CryptoJS);
+      if (decrypted) fieldMap[field] = decrypted;
+    }
 
-        if (isValidDomain(decrypted) && !decodedSet.has(decrypted)) {
-          decodedSet.add(decrypted);
-
-          const config = `香港 = vmess, ${decrypted}, 443, username=${genUUID()}, ws=true, ws-path=/, tls=true, skip-cert-verify=true, sni=${decrypted}`;
-          $.log(`✅ 解密完成 + vmess ✅配置生成\n${config}`);
-          nodes.push(config);
-          break; // 一个加密字段解开就跳出，避免重复尝试
-        }
-      } catch (err) {
-        $.log(`尝试 key=${key} 解密失败：${err.message}`);
+    if (["address", "port", "path", "node_id"].every(f => fieldMap[f])) {
+      const addr = fieldMap.address;
+      const vmess = `香港 = vmess, ${addr}, ${fieldMap.port}, username=${fieldMap.node_id}, ws=true, ws-path=${fieldMap.path}, tls=true, skip-cert-verify=true, sni=${addr}`;
+      if (!generated.has(vmess)) {
+        generated.add(vmess);
+        $.msg("✅ 解密完成 + vmess ✅配置生成", "", vmess);
+        $.log("配置：\n" + vmess);
       }
     }
   }
 
-  if (nodes.length === 0) {
-    $.msg($.name, "未能解密任何有效配置");
+  if (!generated.size) {
+    $.msg("❌ 无法生成任何 vmess 配置", "字段可能未匹配或解密失败", "");
   }
 
   $.done({});
 
-  function AES_Decrypt(data, key, iv, CryptoJS) {
-    const decrypted = CryptoJS.AES.decrypt(data, key, {
-      iv: iv,
-      mode: CryptoJS.mode.CBC,
-      padding: CryptoJS.pad.Pkcs7
-    });
-    return decrypted.toString(CryptoJS.enc.Utf8);
-  }
-
-  function isValidDomain(str) {
-    return /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(str);
-  }
-
-  function genUUID() {
-    const hex = [...Array(36)].map((_, i) =>
-      [8, 13, 18, 23].includes(i) ? "-" : Math.floor(Math.random() * 16).toString(16)
-    );
-    hex[14] = "4";
-    hex[19] = (parseInt(hex[19], 16) & 0x3 | 0x8).toString(16);
-    return hex.join("");
-  }
-
-  function collectEncryptedStrings(obj, keys = [], depth = 0) {
-    if (depth > 8 || obj == null) return [];
-    let results = [];
-
-    if (typeof obj === "object") {
-      if (Array.isArray(obj)) {
-        for (const item of obj) {
-          results = results.concat(collectEncryptedStrings(item, keys, depth + 1));
-        }
-      } else {
-        for (const k in obj) {
-          if (keys.includes(k) && typeof obj[k] === "string" && isProbablyEncrypted(obj[k])) {
-            results.push(obj[k]);
-          } else {
-            results = results.concat(collectEncryptedStrings(obj[k], keys, depth + 1));
-          }
-        }
-      }
-    }
-    return results;
-  }
-
   function isProbablyEncrypted(str) {
-    return /^[A-Za-z0-9+/=]{20,}$/.test(str) || /^[\w\-]+\.[\w\-]+\.[\w\-]+$/.test(str);
+    return typeof str === "string" && /^[A-Za-z0-9+/=]{16,}$/.test(str);
+  }
+
+  function tryDecrypt(base64Str, CryptoJS) {
+    for (const { key, iv } of KEYS) {
+      try {
+        const k = CryptoJS.enc.Utf8.parse(key);
+        const i = CryptoJS.enc.Utf8.parse(iv);
+        const decrypted = CryptoJS.AES.decrypt(base64Str, k, {
+          iv: i,
+          mode: CryptoJS.mode.CBC,
+          padding: CryptoJS.pad.Pkcs7
+        }).toString(CryptoJS.enc.Utf8);
+        if (decrypted?.trim()) return decrypted;
+      } catch {}
+    }
+    return null;
+  }
+
+  function extractFieldName(path) {
+    const name = path.toLowerCase();
+    if (name.includes("addr")) return "address";
+    if (name.includes("port")) return "port";
+    if (name.includes("path")) return "path";
+    if (name.includes("node_id") || name.includes("uuid")) return "node_id";
+    return null;
+  }
+
+  function groupFields(pairs) {
+    const grouped = [];
+    const temp = {};
+    for (const [k, v] of pairs) {
+      const id = k.split(".").slice(0, -1).join(".");
+      if (!temp[id]) temp[id] = [];
+      temp[id].push([k, v]);
+    }
+    return Object.values(temp);
   }
 
   async function loadUtils($) {
-    try {
-      const cached = $.getdata("Utils_Code");
-      if (cached) { eval(cached); return creatUtils(); }
-      const script = await $.get("https://cdn.jsdelivr.net/gh/xzxxn777/Surge@main/Utils/Utils.js");
-      $.setdata(script, "Utils_Code");
-      eval(script);
-      return creatUtils();
-    } catch (e) {
-      throw new Error("加载 Utils 失败: " + e.message);
-    }
+    const cached = $.getdata("Utils_Code");
+    if (cached) { eval(cached); return creatUtils(); }
+    const script = await $.get("https://cdn.jsdelivr.net/gh/xzxxn777/Surge@main/Utils/Utils.js");
+    $.setdata(script, "Utils_Code");
+    eval(script);
+    return creatUtils();
   }
 
   async function loadEnv() {
-    try {
-      const cached = $persistentStore.read("Eric_Env_Code");
-      if (cached) { eval(cached); return Env; }
-      const script = await getCompatible("https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/evn.js");
-      $persistentStore.write(script, "Eric_Env_Code");
-      eval(script);
-      return Env;
-    } catch (e) {
-      throw new Error("加载 Env 失败: " + e.message);
-    }
+    const cached = $persistentStore.read("Eric_Env_Code");
+    if (cached) { eval(cached); return Env; }
+    const script = await getCompatible("https://raw.githubusercontent.com/ycheng0999/cc/refs/heads/Y/evn.js");
+    $persistentStore.write(script, "Eric_Env_Code");
+    eval(script);
+    return Env;
   }
 
   function getCompatible(url) {
