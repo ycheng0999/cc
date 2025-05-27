@@ -116,7 +116,7 @@
       } else if (typeof $task !== "undefined") {
         $task.fetch({ url }).then(resp => resolve(resp.body), reject);
       } else {
-        reject("不支持的运行环境");
+        reject("不支持的运行环境"); 
       }
     });
   }
